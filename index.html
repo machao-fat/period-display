@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>周期幅值展示系统</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", sans-serif;
+    background: linear-gradient(135deg, #f0f7f0 0%, #e8f4e8 30%, #f5faf5 60%, #edf6ed 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #2c3e2c;
+  }
+
+  /* ===== 顶部标题栏 ===== */
+  .header {
+    width: 100%;
+    padding: 28px 40px 16px;
+    text-align: center;
+  }
+  .header h1 {
+    font-size: 42px;
+    font-weight: 300;
+    color: #3a7a4a;
+    letter-spacing: 8px;
+  }
+  .header .subtitle {
+    font-size: 18px;
+    color: #8aab8a;
+    margin-top: 4px;
+    letter-spacing: 4px;
+  }
+
+  /* ===== 主显示区域 ===== */
+  .display-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 1200px;
+    padding: 40px 20px;
+  }
+
+  /* 大屏展示数值 */
+  .display-value {
+    font-size: 180px;
+    font-weight: 200;
+    color: #2c5a2c;
+    line-height: 1.2;
+    text-align: center;
+    letter-spacing: 8px;
+    transition: all 0.3s ease;
+  }
+  .display-value .period-part { color: #3a8a4a; }
+  .display-value .amp-part   { color: #5a9a5a; }
+
+  /* 选择器区域 */
+  .selectors {
+    display: flex;
+    gap: 60px;
+    align-items: center;
+    margin-top: 48px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .select-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .select-group label {
+    font-size: 22px;
+    font-weight: 400;
+    color: #5a8a5a;
+    letter-spacing: 3px;
+  }
+
+  .select-group select {
+    font-size: 28px;
+    padding: 14px 40px 14px 24px;
+    border: 2px solid #c8dcc8;
+    border-radius: 14px;
+    background: #fff;
+    color: #2c4a2c;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235a8a5a' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    min-width: 180px;
+    text-align: center;
+    transition: all 0.2s;
+    font-family: inherit;
+    outline: none;
+  }
+
+  .select-group select:hover  { border-color: #7aba7a; }
+  .select-group select:focus  { border-color: #5aaa5a; box-shadow: 0 0 0 4px rgba(90,170,90,0.12); }
+
+  /* ===== 底部工具栏 ===== */
+  .bottom-bar {
+    width: 100%;
+    padding: 20px 40px 28px;
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 12px 28px;
+    border: 1.5px solid #b8d4b8;
+    border-radius: 10px;
+    background: #fff;
+    color: #4a7a4a;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s;
+    font-family: inherit;
+    letter-spacing: 1px;
+  }
+
+  .btn:hover  { background: #f0faf0; border-color: #7aba7a; }
+  .btn.accent { background: #e8f5e8; border-color: #8cc88c; color: #3a6a3a; font-weight: 500; }
+  .btn.accent:hover { background: #d8f0d8; }
+
+  /* ===== 数据编辑面板(弹窗) ===== */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.25);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .overlay.show { display: flex; }
+
+  .panel {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+    width: 94vw;
+    max-width: 1300px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 20px 28px;
+    border-bottom: 1px solid #e8f0e8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .panel-header h2 {
+    font-size: 22px;
+    font-weight: 500;
+    color: #3a6a3a;
+    letter-spacing: 2px;
+  }
+
+  .panel-close {
+    width: 36px; height: 36px;
+    border: none;
+    background: #f5faf5;
+    border-radius: 50%;
+    font-size: 20px;
+    color: #8aaa8a;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .panel-close:hover { background: #e0efe0; color: #4a7a4a; }
+
+  .panel-body {
+    flex: 1;
+    overflow: auto;
+    padding: 8px 16px 16px;
+  }
+
+  .panel-body table {
+    border-collapse: collapse;
+    width: max-content;
+    min-width: 100%;
+    font-size: 15px;
+  }
+
+  .panel-body thead { position: sticky; top: 0; z-index: 5; }
+
+  .panel-body thead th {
+    background: #f0f7f0;
+    border-bottom: 2px solid #c8dcc8;
+    padding: 12px 14px;
+    text-align: center;
+    font-weight: 500;
+    color: #4a7a4a;
+    white-space: nowrap;
+  }
+
+  .panel-body thead th:first-child {
+    color: #8aaa8a; font-weight: 400; font-size: 13px;
+  }
+
+  .panel-body tbody td {
+    border-bottom: 1px solid #eef5ee;
+    padding: 8px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .panel-body tbody td:hover             { background: #f5faf5; }
+  .panel-body tbody td:first-child       { color: #aac0aa; font-size: 13px; cursor: default; }
+  .panel-body tbody td.period-td         { font-weight: 500; color: #3a6a3a; }
+
+  .panel-body tbody td input {
+    width: 64px;
+    padding: 5px 8px;
+    border: 1.5px solid #7aba7a;
+    border-radius: 5px;
+    font-size: 15px;
+    text-align: center;
+    outline: none;
+    font-family: inherit;
+    color: #2c4a2c;
+  }
+
+  .panel-body tbody tr:nth-child(even) td { background: #fafffa; }
+  .panel-body tbody tr:nth-child(even) td:hover { background: #f0f8f0; }
+
+  .panel-footer {
+    padding: 12px 28px 20px;
+    display: flex;
+    gap: 14px;
+    justify-content: flex-end;
+    border-top: 1px solid #e8f0e8;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #c8dcc8; border-radius: 3px; }
+
+  /* ---- 响应式 ---- */
+  @media (max-width: 800px) {
+    .display-value { font-size: 100px; }
+    .selectors { gap: 28px; }
+    .select-group select { font-size: 22px; padding: 10px 28px 10px 18px; min-width: 140px; }
+    .header h1 { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>周期 — 幅值展示</h1>
+  <div class="subtitle">PERIOD & AMPLITUDE</div>
+</div>
+
+<div class="display-area">
+  <!-- 大屏展示 -->
+  <div class="display-value" id="bigDisplay">
+    <span class="period-part"  id="dispPeriod">0.5</span>s,
+    <span class="amp-part"    id="dispAmplitude">1</span>
+  </div>
+
+  <!-- 两个下拉选择器 -->
+  <div class="selectors">
+    <div class="select-group">
+      <label>周 期</label>
+      <select id="periodSelect"></select>
+    </div>
+    <div class="select-group">
+      <label>幅 值</label>
+      <select id="ampSelect"></select>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <button class="btn accent" onclick="openEditor()">编辑数据表</button>
+  <button class="btn" onclick="exportData()">导出 JSON</button>
+  <button class="btn" onclick="document.getElementById('importFile').click()">导入 JSON</button>
+  <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
+</div>
+
+<!-- ===== 编辑弹窗 ===== -->
+<div class="overlay" id="editorOverlay" onclick="if(event.target===this) closeEditor()">
+  <div class="panel">
+    <div class="panel-header">
+      <h2>数据编辑</h2>
+      <button class="panel-close" onclick="closeEditor()">&times;</button>
+    </div>
+    <div class="panel-body">
+      <table>
+        <thead id="editThead"></thead>
+        <tbody id="editTbody"></tbody>
+      </table>
+    </div>
+    <div class="panel-footer">
+      <button class="btn accent" onclick="addPeriod()">+ 添加周期</button>
+      <button class="btn" onclick="closeEditor()">完成</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 数据 ==========
+const RAW_PERIODS = [
+  0.5, 0.5, 0.55, 0.55, 0.6, 0.6, 0.65, 0.65,
+  0.7, 0.7, 0.73, 0.73, 0.77, 0.77, 0.8, 0.8,
+  0.83, 0.83, 0.87, 0.87, 0.9, 0.9, 0.95, 0.95,
+  1, 1, 1.05, 1.05, 1.1, 1.1, 1.15, 1.15,
+  1.2, 1.2, 1.3, 1.3, 1.4, 1.4, 1.5, 1.5,
+  1.6, 1.6, 1.8, 1.8, 2, 2
+];
+
+// 去重
+const UNIQUE_PERIODS = [...new Set(RAW_PERIODS)];
+
+const AMP_COUNT = 14;
+
+// data: { period, amps: number[] }[]
+let data = UNIQUE_PERIODS.map(p => ({
+  period: p,
+  amps: Array.from({ length: AMP_COUNT }, (_, i) => i + 1)
+}));
+
+let editingCell = null;
+let currentPeriodIdx = 0;
+let currentAmpIdx = 0;
+
+// ========== 大屏展示更新 ==========
+function updateDisplay() {
+  const row = data[currentPeriodIdx];
+  const period = row ? row.period : data[0].period;
+  const ampVal = row ? row.amps[currentAmpIdx] : data[0].amps[0];
+
+  document.getElementById('dispPeriod').textContent = period;
+  document.getElementById('dispAmplitude').textContent = ampVal;
+}
+
+function updateSelectors() {
+  const periodSel = document.getElementById('periodSelect');
+  const ampSel = document.getElementById('ampSelect');
+
+  periodSel.innerHTML = '';
+  data.forEach((row, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = row.period + 's';
+    periodSel.appendChild(opt);
+  });
+  periodSel.value = currentPeriodIdx;
+
+  ampSel.innerHTML = '';
+  for (let i = 0; i < AMP_COUNT; i++) {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = '幅值 ' + (i + 1);
+    ampSel.appendChild(opt);
+  }
+  ampSel.value = currentAmpIdx;
+}
+
+function onSelectorChange() {
+  currentPeriodIdx = parseInt(document.getElementById('periodSelect').value);
+  currentAmpIdx    = parseInt(document.getElementById('ampSelect').value);
+  updateDisplay();
+}
+
+document.getElementById('periodSelect').addEventListener('change', onSelectorChange);
+document.getElementById('ampSelect').addEventListener('change', onSelectorChange);
+
+// ========== 编辑面板 ==========
+function openEditor() {
+  renderEditTable();
+  document.getElementById('editorOverlay').classList.add('show');
+}
+
+function closeEditor() {
+  document.getElementById('editorOverlay').classList.remove('show');
+  // 刷新主界面
+  updateSelectors();
+  updateDisplay();
+}
+
+function renderEditTable() {
+  const thead = document.getElementById('editThead');
+  const tbody = document.getElementById('editTbody');
+
+  let h = '<tr><th>#</th><th>周期 (T)</th>';
+  for (let i = 1; i <= AMP_COUNT; i++) h += `<th>幅值 ${i}</th>`;
+  h += '</tr>';
+  thead.innerHTML = h;
+
+  let b = '';
+  data.forEach((row, ri) => {
+    b += '<tr>';
+    b += `<td>${ri + 1}</td>`;
+    b += `<td class="period-td" data-edit="period" data-row="${ri}"
+          ondblclick="startEdit(this,'period',${ri})">${row.period}</td>`;
+    for (let ci = 0; ci < AMP_COUNT; ci++) {
+      b += `<td data-edit="amp" data-row="${ri}" data-amp="${ci}"
+            ondblclick="startEdit(this,'amp',${ri},${ci})">${row.amps[ci]}</td>`;
+    }
+    b += '</tr>';
+  });
+  tbody.innerHTML = b;
+}
+
+// ========== 编辑单元格 ==========
+function startEdit(cell, type, rowIdx, ampIdx) {
+  if (editingCell) return;
+  const original = type === 'period'
+    ? data[rowIdx].period
+    : data[rowIdx].amps[ampIdx];
+
+  editingCell = { cell, type, rowIdx, ampIdx };
+  cell.innerHTML = `<input type="number" step="any" value="${original}"
+    onblur="commitEdit(this)"
+    onkeydown="if(event.key==='Enter') commitEdit(this); if(event.key==='Escape') cancelEdit(this)">`;
+  const inp = cell.querySelector('input');
+  inp.focus();
+  inp.select();
+}
+
+function commitEdit(input) {
+  if (!editingCell) return;
+  const { type, rowIdx, ampIdx } = editingCell;
+  const val = parseFloat(input.value);
+  if (isNaN(val)) { cancelEdit(input); return; }
+
+  if (type === 'period') {
+    data[rowIdx].period = val;
+  } else {
+    data[rowIdx].amps[ampIdx] = val;
+  }
+  editingCell.cell.textContent = val;
+  editingCell = null;
+}
+
+function cancelEdit(input) {
+  if (!editingCell) return;
+  const { type, rowIdx, ampIdx, cell } = editingCell;
+  cell.textContent = type === 'period'
+    ? data[rowIdx].period
+    : data[rowIdx].amps[ampIdx];
+  editingCell = null;
+}
+
+// ========== 添加周期 ==========
+function addPeriod() {
+  const last = data[data.length - 1];
+  const newPeriod = last ? (Math.round((last.period + 0.05) * 100) / 100) : 1;
+  data.push({
+    period: newPeriod,
+    amps: last ? [...last.amps] : Array.from({ length: AMP_COUNT }, (_, i) => i + 1)
+  });
+  renderEditTable();
+}
+
+// ========== 导入/导出 ==========
+function exportData() {
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'period_amplitude_data.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!Array.isArray(imported)) throw new Error('格式错误');
+      data = imported.map(r => ({
+        period: r.period ?? 0,
+        amps: (r.amps && r.amps.length === AMP_COUNT)
+          ? r.amps
+          : Array.from({ length: AMP_COUNT }, (_, i) => i + 1)
+      }));
+      currentPeriodIdx = Math.min(currentPeriodIdx, data.length - 1);
+      updateSelectors();
+      updateDisplay();
+      closeEditor();
+    } catch (err) {
+      alert('导入失败：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// 键盘快捷导出
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 's') { e.preventDefault(); exportData(); }
+});
+
+// ========== 启动 ==========
+updateSelectors();
+updateDisplay();
+</script>
+
+</body>
+</html>
