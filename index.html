@@ -589,6 +589,31 @@ document.addEventListener('keydown', e => {
   if (e.ctrlKey && e.key === 's') { e.preventDefault(); exportData(); }
 });
 
+// ========== 屏幕常亮 (Wake Lock) ==========
+let wakeLock = null;
+
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => {
+        console.log('Wake Lock released');
+      });
+    } catch (err) {
+      console.warn('Wake Lock 请求失败:', err);
+    }
+  }
+}
+
+async function reacquireWakeLock() {
+  if (wakeLock !== null && document.visibilityState === 'visible') {
+    await requestWakeLock();
+  }
+}
+
+requestWakeLock();
+document.addEventListener('visibilitychange', reacquireWakeLock);
+
 // ========== 启动 ==========
 updateSelectors();
 updateDisplay();
