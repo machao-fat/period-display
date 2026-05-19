@@ -272,7 +272,7 @@
 
 <div class="header">
   <h1>周期 — 幅值展示</h1>
-  <div class="subtitle">PERIOD & AMPLITUDE</div>
+  <div class="subtitle">PERIOD & AMPLITUDE &nbsp; <span id="connStatus" style="font-size:13px; color:#aaa;">● 离线</span></div>
 </div>
 
 <div class="display-area">
@@ -322,7 +322,72 @@
   </div>
 </div>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-database-compat.js"></script>
 <script>
+// ========== Firebase 配置 ==========
+const firebaseConfig = {
+  apiKey: "AIzaSyCcmTMyCcjIEYvRRf7eV6gc9H4hQYW0Xmw",
+  authDomain: "machao-b65e1.firebaseapp.com",
+  databaseURL: "https://machao-b65e1-default-rtdb.firebaseio.com",
+  projectId: "machao-b65e1",
+  storageBucket: "machao-b65e1.firebasestorage.app",
+  messagingSenderId: "826105819443",
+  appId: "1:826105819443:web:531335e89570a2d3658e46"
+};
+
+let db = null;
+let stateRef = null;
+let remoteSyncing = false;
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  stateRef = db.ref('period-amplitude-state');
+
+  db.ref('.info/connected').on('value', (snap) => {
+    const el = document.getElementById('connStatus');
+    if (snap.val() === true) {
+      el.textContent = '● 已同步';
+      el.style.color = '#4CAF50';
+    } else {
+      el.textContent = '● 离线';
+      el.style.color = '#aaa';
+    }
+  });
+
+  stateRef.on('value', (snapshot) => {
+    const state = snapshot.val();
+    if (state) {
+      remoteSyncing = true;
+      applyRemoteState(state);
+      remoteSyncing = false;
+    }
+  });
+} catch(e) {
+  console.warn('Firebase 初始化失败，使用本地模式', e);
+}
+
+function applyRemoteState(state) {
+  if (state.data && Array.isArray(state.data)) {
+    data = state.data;
+    currentPeriodIdx = (state.currentPeriodIdx != null && state.currentPeriodIdx < data.length)
+      ? state.currentPeriodIdx : 0;
+    currentAmpIdx = (state.currentAmpIdx != null) ? state.currentAmpIdx : 0;
+    updateSelectors();
+    updateDisplay();
+    if (document.getElementById('editorOverlay').classList.contains('show')) {
+      renderEditTable();
+    }
+  }
+}
+
+function pushState() {
+  if (!stateRef || remoteSyncing) return;
+  stateRef.set({ currentPeriodIdx, currentAmpIdx, data });
+}
+
 // ========== 数据 ==========
 const RAW_PERIODS = [
   0.5, 0.5, 0.55, 0.55, 0.6, 0.6, 0.65, 0.65,
@@ -385,6 +450,7 @@ function onSelectorChange() {
   currentPeriodIdx = parseInt(document.getElementById('periodSelect').value);
   currentAmpIdx    = parseInt(document.getElementById('ampSelect').value);
   updateDisplay();
+  pushState();
 }
 
 document.getElementById('periodSelect').addEventListener('change', onSelectorChange);
@@ -456,6 +522,7 @@ function commitEdit(input) {
   }
   editingCell.cell.textContent = val;
   editingCell = null;
+  pushState();
 }
 
 function cancelEdit(input) {
@@ -476,6 +543,7 @@ function addPeriod() {
     amps: last ? [...last.amps] : Array.from({ length: AMP_COUNT }, (_, i) => i + 1)
   });
   renderEditTable();
+  pushState();
 }
 
 // ========== 导入/导出 ==========
@@ -507,6 +575,7 @@ function importData(event) {
       updateSelectors();
       updateDisplay();
       closeEditor();
+      pushState();
     } catch (err) {
       alert('导入失败：' + err.message);
     }
